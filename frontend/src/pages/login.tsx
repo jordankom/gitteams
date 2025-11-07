@@ -1,56 +1,30 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import InputField from "../components/InputField";
-import Navbar from "../components/Navbar";
+import React from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import LoginForm from '../components/LoginForm';
+import { isAuthenticated } from '../utils/auth';
 
-const Login: React.FC = () => {
+export default function LoginPage() {
     const navigate = useNavigate();
-    const [name, setName] = useState("");
-    const [password, setPassword] = useState("");
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-        // ⚙️ plus tard : appel à ton backend pour authentifier
-        if (name && password) {
-            navigate("/dashboard"); // redirection
-        } else {
-            alert("Veuillez entrer votre nom et mot de passe");
-        }
-    };
+    // 🔁 Si déjà connecté → redirige vers /dashboard
+    if (isAuthenticated()) {
+        return <Navigate to="/dashboard" replace />;
+    }
 
     return (
-        <>
-            <Navbar />
-            <div className="container d-flex justify-content-center align-items-center"
-                 style={{ minHeight: "100vh" }}>
+        <div className="d-flex flex-column min-vh-100">
+            <Navbar userName="Invité" onLogout={() => navigate('/login')} />
 
-
-                <div
-                    className="card p-4 shadow-sm"
-                    style={{ width: "100%", maxWidth: "400px" }}
-                >
-                <h3 className="mb-4 text-center">Connexion</h3>
-                <form onSubmit={handleLogin}>
-                    <InputField
-                        label="Nom d'utilisateur"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                    />
-                    <InputField
-                        label="Mot de passe"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <button className="btn btn-primary w-100" type="submit">
-                        Se connecter
-                    </button>
-                </form>
+            <div className="flex-grow-1 d-flex align-items-center justify-content-center bg-light py-4 py-md-5">
+                <div className="container">
+                    <div className="row justify-content-center">
+                        <div className="col-12 col-sm-10 col-md-8 col-lg-6 d-flex justify-content-center">
+                            <LoginForm onSuccess={() => navigate('/dashboard')} />
+                        </div>
+                    </div>
+                </div>
             </div>
-            </div>
-        </>
+        </div>
     );
-};
-
-export default Login;
+}

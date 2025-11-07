@@ -1,14 +1,29 @@
-import React from "react";
-import "bootstrap/dist/css/bootstrap.min.css";
+import React from 'react';
 
-const Navbar: React.FC = () => {
+type Props = {
+    userName?: string;
+    onLogout?: () => void;
+};
+
+export default function Navbar({ userName = 'Utilisateur', onLogout }: Props) {
+
     return (
-        <nav className="navbar navbar-dark bg-primary mb-4">
-            <div className="container">
-                <span className="navbar-brand mb-0 h1">Git-Teams</span>
+        <nav className="navbar navbar-dark bg-dark">
+            <div className="container-fluid">
+                <span className="navbar-brand">Git-Teams</span>
+                <div className="d-flex align-items-center ms-auto gap-3">
+          <span className="text-white-50 small d-none d-sm-inline">
+            {userName}
+          </span>
+                    <button
+                        type="button"
+                        className="btn btn-outline-light btn-sm"
+                        onClick={onLogout}
+                    >
+                        Déconnexion
+                    </button>
+                </div>
             </div>
         </nav>
     );
-};
-
-export default Navbar;
+}

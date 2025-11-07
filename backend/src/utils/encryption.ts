@@ -1,29 +1,23 @@
-// src/utils/crypto.ts
-import crypto from "crypto";
-import dotenv from "dotenv";
-dotenv.config();
+import crypto from 'crypto';
+import { env } from '../config/env';
 
-const ALGO = "aes-256-cbc";
+const algorithm = 'aes-256-gcm';
+const secret = env.ENCRYPTION_SECRET.padEnd(32, '0').slice(0, 32); // 32 bytes
+const iv = Buffer.from(env.ENCRYPTION_IV.padEnd(16, '0').slice(0, 16));
 
-// Key: 32 bytes. Si TOKEN_SECRET dans .env.example -> on l'utilise, sinon on génère une clé mémoire.
-const KEY = process.env.TOKEN_SECRET
-    ? crypto.createHash("sha256").update(process.env.TOKEN_SECRET).digest()
-    : crypto.randomBytes(32);
+export function encrypt(text: string): string {
+    const cipher = crypto.createCipheriv(algorithm, secret, iv);
+    const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    return Buffer.concat([authTag, encrypted]).toString('base64');
+}
 
-// IV sera généré aléatoirement à chaque encryption et préfixé dans la chaîne retournée.
-export const encryptToken = (plain: string): string => {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(ALGO, KEY, iv);
-    const encrypted = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
-    return `${iv.toString("hex")}:${encrypted.toString("hex")}`;
-};
-
-export const decryptToken = (payload: string): string => {
-    const [ivHex, encryptedHex] = payload.split(":");
-    if (!ivHex || !encryptedHex) throw new Error("Invalid token format");
-    const iv = Buffer.from(ivHex, "hex");
-    const encrypted = Buffer.from(encryptedHex, "hex");
-    const decipher = crypto.createDecipheriv(ALGO, KEY, iv);
+export function decrypt(encryptedText: string): string {
+    const buffer = Buffer.from(encryptedText, 'base64');
+    const authTag = buffer.subarray(0, 16);
+    const encrypted = buffer.subarray(16);
+    const decipher = crypto.createDecipheriv(algorithm, secret, iv);
+    decipher.setAuthTag(authTag);
     const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-    return decrypted.toString("utf8");
-};
+    return decrypted.toString('utf8');
+}
