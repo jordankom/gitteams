@@ -82,13 +82,6 @@ export default function ProjectDetails() {
                                 Retour
                             </button>
 
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                onClick={() => navigate(`/projects/${id}/groups/new`)}
-                            >
-                                Créer un groupe
-                            </button>
                         </div>
                     </>
                 )}

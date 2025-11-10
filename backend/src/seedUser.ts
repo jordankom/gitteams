@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import { connectDB } from './config/db';
-import { User } from './models/User';
+import { User } from './models/User' +
+    '';
 
 async function seedUser() {
     try {
