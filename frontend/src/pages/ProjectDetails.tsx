@@ -1,20 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import MetaStat from '../components/MetaStat';
-import GroupList, { type Group } from '../components/GroupList';
-import { getUserName, clearSession } from '../utils/auth';
-import api from '../services/api/axios';
+import { useNavigate, useParams } from 'react-router-dom';
 
-type Project = {
-    id: string;
-    title: string;
-    org: string;
-    description?: string | null;
-    minPeople?: number ;
-    maxPeople?: number ;
-    createdAt?: string;
-};
+import Navbar from '../components/Navbar';
+import Breadcrumbs from '../components/Breadcrumbs';
+import ProjectHeader from '../components/ProjectHeader.tsx';
+import ProjectMetaGrid from '../components/ProjectMetaGrid.tsx';
+import GroupsSection from '../components/GroupsSection';
+
+import { getUserName} from '../utils/auth';
+import api from '../services/api/axios';
+import type { Project } from '../types/project';
+import { type Group } from '../components/GroupList';
 
 export default function ProjectDetails() {
     const navigate = useNavigate();
@@ -25,9 +21,13 @@ export default function ProjectDetails() {
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
 
-    function handleLogout() {
-        clearSession();
-        navigate('/login', { replace: true });
+    async function copyToClipboard(text: string) {
+        try {
+            await navigator.clipboard.writeText(text);
+            alert('Lien copié dans le presse-papiers ✅');
+        } catch {
+            alert('Impossible de copier le lien');
+        }
     }
 
     useEffect(() => {
@@ -36,15 +36,10 @@ export default function ProjectDetails() {
             try {
                 setLoading(true);
                 setErr(null);
-
-                // 🔗 à implémenter côté backend plus tard : GET /api/projects/:id
                 const { data } = await api.get(`/projects/${id}`);
                 if (!mounted) return;
-
-                const p: Project = data.project ?? null;
-                const g: Group[] = data.groups ?? []; // si l’API renvoie déjà des groupes
-                setProject(p);
-                setGroups(Array.isArray(g) ? g : []);
+                setProject(data.project ?? null);
+                setGroups(Array.isArray(data.groups) ? data.groups : []);
             } catch (e: any) {
                 const msg = e?.response?.data?.message || 'Erreur lors du chargement du projet';
                 setErr(msg);
@@ -57,18 +52,14 @@ export default function ProjectDetails() {
 
     return (
         <div className="d-flex flex-column min-vh-100 bg-light">
-            <Navbar userName={getUserName()} onLogout={handleLogout} />
+            {/* Navbar avec bouton de déconnexion (onLogout omis) */}
+            <Navbar userName={getUserName()} onLogout={() => navigate('/login')} />
 
             <main className="container py-4 flex-grow-1">
-                {/* Fil d’ariane simple */}
-                <nav className="mb-3">
-                    <ol className="breadcrumb mb-0">
-                        <li className="breadcrumb-item"><Link to="/dashboard">Tableau de bord</Link></li>
-                        <li className="breadcrumb-item active" aria-current="page">
-                            {project ? project.title : 'Projet'}
-                        </li>
-                    </ol>
-                </nav>
+                <Breadcrumbs items={[
+                    { label: 'Tableau de bord', to: '/dashboard' },
+                    { label: project ? project.title : 'Projet' },
+                ]} />
 
                 {loading ? (
                     <p className="text-muted">Chargement…</p>
@@ -78,66 +69,27 @@ export default function ProjectDetails() {
                     <div className="alert alert-warning">Projet introuvable.</div>
                 ) : (
                     <>
-                        {/* En-tête */}
-                        <header className="mb-3">
-                            <h1 className="h3 mb-1">{project.title}</h1>
-                            {project.description ? (
-                                <p className="text-muted small mb-0">{project.description}</p>
-                            ) : (
-                                <p className="text-muted small mb-0">aucune description</p>
-                            )}
-                        </header>
+                        <ProjectHeader project={project} onCopyLink={copyToClipboard} />
+                        <ProjectMetaGrid project={project} />
+                        <GroupsSection groups={groups} />
 
-                        {/* Méta infos (responsive) */}
-                        <section className="row g-3 mb-4">
-                            <div className="col-12 col-md-4">
-                                <div className="card shadow-sm">
-                                    <div className="card-body">
-                                        <MetaStat label="Étudiants minimum" value={project.minPeople ?? '-'} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="col-12 col-md-4">
-                                <div className="card shadow-sm">
-                                    <div className="card-body">
-                                        <MetaStat label="Étudiants maximum" value={project.maxPeople ?? '-'} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="col-12 col-md-4">
-                                <div className="card shadow-sm">
-                                    <div className="card-body">
-                                        <MetaStat label="Organisation" value={project.org} />
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Groupes inscrits */}
-                        <section className="card shadow-sm">
-                            <div className="card-body">
-                                <h2 className="h5 mb-3">Groupes Inscrits</h2>
-                                <GroupList groups={groups} />
-                            </div>
-                        </section>
-
-                        {/* Actions en bas à droite (Annuler / Valider) */}
                         <div className="d-flex justify-content-end gap-2 mt-3">
-                            <button className="btn btn-outline-secondary" onClick={() => navigate('/dashboard')}>
-                                Annuler
+                            <button
+                                type="button"
+                                className="btn btn-outline-secondary"
+                                onClick={() => navigate('/dashboard')}
+                            >
+                                Retour
                             </button>
-                            <button className="btn btn-primary" onClick={() => {/* TODO: action */}}>
-                                Valider
+
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={() => navigate(`/projects/${id}/groups/new`)}
+                            >
+                                Créer un groupe
                             </button>
                         </div>
-
-                        <button
-                            className="btn btn-primary mb-3"
-                            onClick={() => navigate(`/projects/${id}/groups/new`)}
-                        >
-                            Créer un groupe
-                        </button>
-
                     </>
                 )}
             </main>

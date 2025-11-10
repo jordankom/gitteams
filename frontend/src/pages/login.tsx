@@ -14,7 +14,7 @@ export default function LoginPage() {
 
     return (
         <div className="d-flex flex-column min-vh-100">
-            <Navbar userName="Invité" onLogout={() => navigate('/login')} />
+            <Navbar  />
 
             <div className="flex-grow-1 d-flex align-items-center justify-content-center bg-light py-4 py-md-5">
                 <div className="container">

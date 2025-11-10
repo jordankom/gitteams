@@ -1,5 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
-
+import crypto from 'crypto';
 export interface IProject extends Document {
     userId: Types.ObjectId;
     title: string;
@@ -7,6 +7,11 @@ export interface IProject extends Document {
     description?: string | null;
     minPeople: number;            // ✅ nouveau
     maxPeople: number;            // ✅ nouveau
+    // 🔽 nouveaux champs
+    inviteSlug: string;        // lien public (jeton non sensible)
+    nextGroupNumber: number;   // compteur atomique
+
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -31,6 +36,15 @@ const projectSchema = new Schema<IProject>(
                 message: 'maxPeople doit être ≥ minPeople',
             },
         },
+        // ✅ nouveaux champs
+        inviteSlug: {
+            type: String,
+            unique: true,
+            index: true,
+            required: true,
+            default: () => crypto.randomBytes(16).toString('hex'), // 32 chars
+        },
+        nextGroupNumber: { type: Number, required: true, default: 1 },
     },
     {
         timestamps: true,

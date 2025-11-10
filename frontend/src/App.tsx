@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import GroupCreatePublic from './pages/GroupCreatePublic.tsx';
+
 
 // ✅ Pages
 import Login from './pages/login.tsx';
@@ -62,6 +64,8 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
+                <Route path="/invite/:slug" element={<GroupCreatePublic />} />
+
 
                 {/* Toute route inconnue → redirection vers /login */}
                 <Route path="*" element={<Navigate to="/login" replace />} />

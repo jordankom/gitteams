@@ -9,6 +9,7 @@ import { connectDB } from './config/db';
 import authRoutes from './routes/authRoutes';
 import githubRoutes from './routes/githubRoutes';
 import projectRoutes from './routes/projectsRoutes';
+import publicRoutes from './routes/publicRoutes';
 
 async function bootstrap() {
     // 🧩 Connexion à la base de données
@@ -48,7 +49,7 @@ async function bootstrap() {
 
     // 🔍 Healthcheck pour tester si tout fonctionne
     app.get('/api/health', (_req, res) => res.json({ ok: true }));
-
+    app.use('/api/public', publicRoutes);
     // 🚧 Route 404 pour toutes les routes /api non trouvées
     // ⚠️ Express 5 ne supporte plus le pattern '/api/*'
     app.use('/api', (_req, res) => {
