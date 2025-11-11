@@ -46,7 +46,7 @@ export const createProject = async (req: Request, res: Response) => {
 
     return res.status(201).json({
         project: {
-            id: doc._id.toString(),
+            id: doc.id,
             title: doc.title,
             org: doc.org,
             description: doc.description ?? 'aucune description',

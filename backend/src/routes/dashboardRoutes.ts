@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { protect } from "../middleware/auth.ts";
-import User from "../models/User.ts";
-import { decryptToken } from "../utils/encryption.ts";
+import  protect  from "../middleware/auth";
+import User from "../models/User";
+import { decrypt } from "../utils/encryption";
 
 const router = Router();
 
@@ -12,14 +12,14 @@ router.get("/dashboard", protect, async (req, res) => {
 
         let githubTokenPlain = "";
         try {
-            githubTokenPlain = decryptToken(user.githubToken);
+            githubTokenPlain = decrypt(user.githubToken);
         } catch (err) {
             console.error("decrypt error:", err);
         }
 
         return res.json({
             id: user._id,
-            username: user.username,
+            username: user.name,
             githubToken: githubTokenPlain,
         });
     } catch (err) {

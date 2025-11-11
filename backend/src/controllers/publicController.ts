@@ -42,7 +42,7 @@ export async function createGroupPublic(req: Request, res: Response) {
 
     return res.status(201).json({
         group: {
-            id: group._id.toString(),
+            id: group.id,
             number: group.number,
         },
     });

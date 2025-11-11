@@ -14,6 +14,7 @@ export const env = {
     ENCRYPTION_SECRET: required('ENCRYPTION_SECRET'),
     ENCRYPTION_IV: required('ENCRYPTION_IV'),
 
+    GITHUB_USER_AGENT: process.env.GITHUB_USER_AGENT ?? "git-teams-app",
     //  JWT pour authentifier les requêtes front → back
     JWT_SECRET: required('JWT_SECRET'),
 
