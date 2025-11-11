@@ -8,9 +8,9 @@ export default function LoginPage() {
     const navigate = useNavigate();
 
     // 🔁 Si déjà connecté → redirige vers /dashboard
-    if (isAuthenticated()) {
-        return <Navigate to="/dashboard" replace />;
-    }
+    //if (isAuthenticated()) {
+        //return <Navigate to="/dashboard" replace />;
+    //}
 
     return (
         <div className="d-flex flex-column min-vh-100">

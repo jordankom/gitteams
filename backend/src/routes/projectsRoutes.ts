@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import protect from '../middleware/auth';                       // ✅ DEFAULT import
-import { listMyProjects, createProject, getProjectById } from '../controllers/projectController'; // ✅ NAMED imports
+import {listMyProjects, createProject, getProjectById, deleteProject} from '../controllers/projectController'; // ✅ NAMED imports
 
 const router = Router();
 
@@ -11,4 +11,5 @@ console.log('createProject is function?', typeof createProject);     // doit aff
 router.get('/', protect, listMyProjects);
 router.post('/', protect, createProject);
 router.get('/:id', protect, getProjectById);
+router.delete('/:id', protect, deleteProject);
 export default router;

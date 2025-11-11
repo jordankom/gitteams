@@ -3,18 +3,23 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import Navbar from '../components/Navbar';
 import Breadcrumbs from '../components/Breadcrumbs';
-import ProjectHeader from '../components/ProjectHeader.tsx';
-import ProjectMetaGrid from '../components/ProjectMetaGrid.tsx';
+import ProjectHeader from '../components/ProjectHeader';
+import ProjectMetaGrid from '../components/ProjectMetaGrid';
 import GroupsSection from '../components/GroupsSection';
 
-import { getUserName} from '../utils/auth';
+import { getUserName } from '../utils/auth';
 import api from '../services/api/axios';
 import type { Project } from '../types/project';
-import { type Group } from '../components/GroupList';
+import type { Group } from '../components/GroupList';
+
+import { useLogout } from '../hooks/useLogout';
 
 export default function ProjectDetails() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+
+    // ✅ le hook doit être appelé ici, pas en haut du fichier
+    const logout = useLogout();
 
     const [project, setProject] = useState<Project | null>(null);
     const [groups, setGroups] = useState<Group[]>([]);
@@ -36,8 +41,10 @@ export default function ProjectDetails() {
             try {
                 setLoading(true);
                 setErr(null);
+
                 const { data } = await api.get(`/projects/${id}`);
                 if (!mounted) return;
+
                 setProject(data.project ?? null);
                 setGroups(Array.isArray(data.groups) ? data.groups : []);
             } catch (e: any) {
@@ -47,19 +54,38 @@ export default function ProjectDetails() {
                 setLoading(false);
             }
         })();
-        return () => { mounted = false; };
+        return () => {
+            mounted = false;
+        };
     }, [id]);
+
+    async function handleDelete() {
+        if (!project) return;
+        const ok = confirm(
+            `Supprimer définitivement le projet “${project.title}” ?\nCette action est irréversible.`
+        );
+        if (!ok) return;
+        try {
+            await api.delete(`/projects/${project.id}`);
+            alert('Projet supprimé ✅');
+            navigate('/dashboard');
+        } catch (e: any) {
+            alert(e?.response?.data?.message || 'Erreur lors de la suppression du projet');
+        }
+    }
 
     return (
         <div className="d-flex flex-column min-vh-100 bg-light">
-            {/* Navbar avec bouton de déconnexion (onLogout omis) */}
-            <Navbar userName={getUserName()} onLogout={() => navigate('/login')} />
+            {/* ✅ on passe le vrai handler de logout */}
+            <Navbar userName={getUserName()} onLogout={logout} />
 
             <main className="container py-4 flex-grow-1">
-                <Breadcrumbs items={[
-                    { label: 'Tableau de bord', to: '/dashboard' },
-                    { label: project ? project.title : 'Projet' },
-                ]} />
+                <Breadcrumbs
+                    items={[
+                        { label: 'Tableau de bord', to: '/dashboard' },
+                        { label: project ? project.title : 'Projet' },
+                    ]}
+                />
 
                 {loading ? (
                     <p className="text-muted">Chargement…</p>
@@ -81,7 +107,9 @@ export default function ProjectDetails() {
                             >
                                 Retour
                             </button>
-
+                            <button type="button" className="btn btn-danger" onClick={handleDelete}>
+                                Supprimer le projet
+                            </button>
                         </div>
                     </>
                 )}

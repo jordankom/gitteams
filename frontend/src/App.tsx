@@ -64,8 +64,7 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-                <Route path="/invite/:slug" element={<GroupCreatePublic />} />
-
+                <Route path="/creategroup/:id/:key" element={<GroupCreatePublic />} />
 
                 {/* Toute route inconnue → redirection vers /login */}
                 <Route path="*" element={<Navigate to="/login" replace />} />

@@ -5,14 +5,6 @@ import ProjectTable, { type Project } from '../components/ProjectTable';
 import { clearSession, getUserName } from '../utils/auth';
 import api from '../services/api/axios';
 
-/**
- * Dashboard
- * - Navbar persistante
- * - Récupère et affiche les projets de l'utilisateur connecté
- * - Message vide si aucun projet
- * - Bouton "+" pour créer un projet
- * - Responsive via Bootstrap
- */
 export default function Dashboard() {
     const navigate = useNavigate();
 
@@ -21,23 +13,21 @@ export default function Dashboard() {
     const [err, setErr] = useState<string | null>(null);
 
     function handleLogout() {
-        clearSession(); // supprime token + nom de l'utilisateur
+        clearSession();
         navigate('/login', { replace: true });
     }
 
-    // 🔄 Charger les projets au montage
     useEffect(() => {
         let mounted = true;
         (async () => {
-            setLoading(true);
-            setErr(null);
             try {
-                const { data } = await api.get('/projects'); // { projects: [...] }
+                setLoading(true);
+                setErr(null);
+                const { data } = await api.get('/projects'); // GET /api/projects
                 if (!mounted) return;
-                setProjects(data.projects ?? []);
+                setProjects(Array.isArray(data.projects) ? data.projects : []);
             } catch (e: any) {
-                const msg = e?.response?.data?.message || 'Erreur lors du chargement des projets';
-                setErr(msg);
+                setErr(e?.response?.data?.message || 'Erreur lors du chargement des projets');
             } finally {
                 setLoading(false);
             }
@@ -47,25 +37,28 @@ export default function Dashboard() {
         };
     }, []);
 
+    // callback quand un projet est supprimé
+    function handleDeleted(id: string) {
+        setProjects((prev) => prev.filter((p) => p.id !== id));
+    }
+
     return (
         <div className="d-flex flex-column min-vh-100 bg-light">
-            {/* ✅ Navbar persistante */}
             <Navbar userName={getUserName()} onLogout={handleLogout} />
 
-            {/* ✅ Contenu principal */}
-            <main className="container py-4 flex-grow-1">
-                {loading ? (
-                    <p className="text-muted">Chargement…</p>
-                ) : err ? (
-                    <div className="alert alert-danger">{err}</div>
-                ) : projects.length === 0 ? (
-                    <p className="text-muted text-center fs-5">Aucun projet pour l’instant.</p>
-                ) : (
-                    <ProjectTable projects={projects} />
-                )}
+            <main className="flex-grow-1 d-flex justify-content-center align-items-start py-5">
+                <div className="container" style={{ maxWidth: '900px' }}>
+                    {loading ? (
+                        <p className="text-center text-muted">Chargement…</p>
+                    ) : err ? (
+                        <div className="alert alert-danger text-center">{err}</div>
+                    ) : (
+                        <ProjectTable projects={projects} onDeleted={handleDeleted} />
+                    )}
+                </div>
             </main>
 
-            {/* ✅ Bouton flottant + (en bas à droite) */}
+            {/* Bouton flottant pour créer un projet */}
             <button
                 className="btn btn-primary btn-lg rounded-circle position-fixed bottom-0 end-0 m-4 shadow"
                 style={{ width: 56, height: 56, lineHeight: '1' }}

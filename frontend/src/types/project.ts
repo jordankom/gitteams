@@ -7,4 +7,5 @@ export type Project = {
     maxPeople?: number;
     createdAt?: string;
     inviteSlug?: string;
+    inviteKey?: string;
 };

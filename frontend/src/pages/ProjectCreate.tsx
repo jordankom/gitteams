@@ -1,92 +1,116 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import Navbar from '../components/Navbar';
-import FormField from '../components/FormField';
-import NumberField from '../components/NumberField';
-import FormSelect from '../components/FormSelect';
 import { getUserName } from '../utils/auth';
 import api from '../services/api/axios';
 
-type OrgOption = { value: string; label: string };
+// Type minimal pour une organisation GitHub
+type Org = { id: string; login: string; avatar_url?: string };
 
-export default function ProjectCreate() {
+export default function ProjectNew() {
     const navigate = useNavigate();
 
-    const [form, setForm] = useState({
-        title: '',
-        org: '',
-        description: '',
-        minPeople: '' as number | '',
-        maxPeople: '' as number | '',
-    });
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    const [orgs, setOrgs] = useState<OrgOption[]>([]);
-    const [loadingOrgs, setLoadingOrgs] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
-    const [loadError, setLoadError] = useState<string | null>(null);
+    // Champs du formulaire
+    const [title, setTitle] = useState('');
+    const [org, setOrg] = useState('');
+    const [description, setDescription] = useState('');
+    const [minPeople, setMinPeople] = useState("");
+    const [maxPeople, setMaxPeople] = useState("");
 
-    function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-        setForm((prev) => ({ ...prev, [key]: value }));
+    // Orgs GitHub
+    const [orgs, setOrgs] = useState<Org[]>([]);
+    const [loadingOrgs, setLoadingOrgs] = useState(true);
+    const [errOrgs, setErrOrgs] = useState<string | null>(null);
+
+    // Soumission
+    const [submitting, setSubmitting] = useState(false);
+
+    // Déconnexion classique
+    function handleLogout() {
+        // on laisse ta logique globale de logout (si tu veux rester sur la page, enlève navigate)
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        navigate('/login', { replace: true });
     }
 
-    // 🔄 Charger les organisations GitHub de l'utilisateur connecté
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
+    // --- CHANGEMENT ICI ---
+    // Factorise le chargement des organisations pour pouvoir "Réessayer"
+    async function loadOrgs() {
+        try {
             setLoadingOrgs(true);
-            setLoadError(null);
-            try {
-                const { data } = await api.get('/github/orgs'); // { orgs: [{login}] }
-                if (!mounted) return;
-                const options = (data.orgs ?? []).map((o: any) => ({
-                    value: o.login,
-                    label: o.login,
-                }));
-                setOrgs(options);
-            } catch (err: any) {
-                const msg = err?.response?.data?.message || 'Impossible de charger les organisations';
-                setLoadError(msg);
-            } finally {
-                setLoadingOrgs(false);
-            }
-        })();
-        return () => {
-            mounted = false;
-        };
+            setErrOrgs(null);
+
+            const { data } = await api.get('/github/orgs'); // GET /api/github/orgs
+            const list: Org[] = Array.isArray(data.orgs) ? data.orgs : [];
+            setOrgs(list);
+            setOrg(list[0]?.login ?? ''); // sélectionne la première par défaut (si dispo)
+        } catch (e: any) {
+            const status = e?.response?.status;
+            const message =
+                e?.response?.data?.message ||
+                (status === 401
+                    ? 'Votre token GitHub est invalide ou expiré.'
+                    : 'Impossible de charger vos organisations GitHub.');
+
+            // ✅ On reste sur la page : on n’efface pas la session et on ne redirige pas
+            setErrOrgs(message);
+            setOrgs([]);     // on vide la liste pour que le select affiche "Aucune organisation"
+            setOrg('');      // on réinitialise la valeur sélectionnée
+        } finally {
+            setLoadingOrgs(false);
+        }
+    }
+
+    useEffect(() => {
+        loadOrgs();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ✅ Validation simple côté client
-    function validate() {
-        const e: Record<string, string> = {};
-        if (!form.title.trim()) e.title = 'Nom du projet requis';
-        if (!form.org.trim()) e.org = 'Organisation requise';
-        if (form.minPeople === '' || Number(form.minPeople) < 1) e.minPeople = 'Minimum ≥ 1';
-        if (form.maxPeople === '' || Number(form.maxPeople) < 1) e.maxPeople = 'Maximum ≥ 1';
-        if (form.minPeople !== '' && form.maxPeople !== '' && Number(form.minPeople) > Number(form.maxPeople)) {
-            e.maxPeople = 'Maximum doit être ≥ Minimum';
-        }
-        setErrors(e);
-        return Object.keys(e).length === 0;
+    // Validation simple côté front
+    function canSubmit() {
+        if (!title.trim()) return false;
+        if (!org.trim()) return false;                                   // besoin d’une org valide
+        if (!Number.isFinite(minPeople) || minPeople < 1) return false;
+        if (!Number.isFinite(maxPeople) || maxPeople < 1) return false;
+        if (maxPeople < minPeople) return false;
+        if (errOrgs) return false;                                       // ✅ bloque si token invalide
+        return true;
     }
 
-    // 🚀 Soumission → POST /api/projects
+    // Création du projet
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!validate()) return;
+        if (!canSubmit()) return;
 
-        setSubmitting(true);
         try {
-            await api.post('/projects', {
-                title: form.title,
-                org: form.org,
-                description: form.description?.trim() || undefined,
-                minPeople: Number(form.minPeople),   // ✅ nombres
-                maxPeople: Number(form.maxPeople),   // ✅ nombres
+            setSubmitting(true);
+            const { data } = await api.post('/projects', {
+                title: title.trim(),
+                org: org.trim(),
+                description: description.trim() || null,
+                minPeople,
+                maxPeople,
             });
-            navigate('/dashboard', { replace: true });
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || 'Erreur lors de la création du projet';
-            setErrors((prev) => ({ ...prev, _submit: msg }));
+            alert('Projet créé ✅');
+            navigate(`/projects/${data.project.id}`);
+        } catch (e: any) {
+            const status = e?.response?.status;
+            const msg =
+                e?.response?.data?.message ||
+                (status === 401
+                    ? 'Session expirée — veuillez vous reconnecter.'
+                    : 'Erreur lors de la création du projet');
+
+            alert(msg);
+
+            // ⚠️ Ici, on conserve ton comportement de déconnexion uniquement si la création renvoie 401
+            // Si tu veux aussi rester sur la page en cas de 401 à la création, supprime ces 2 lignes.
+            if (status === 401) {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('auth_user');
+                navigate('/login', { replace: true });
+            }
         } finally {
             setSubmitting(false);
         }
@@ -94,122 +118,120 @@ export default function ProjectCreate() {
 
     return (
         <div className="d-flex flex-column min-vh-100 bg-light">
-            <Navbar userName={getUserName()} onLogout={() => navigate('/login')} />
+            <Navbar userName={getUserName()} onLogout={handleLogout} />
 
-            <main className="container py-4">
-                <h1 className="h3 mb-4">Créer un projet</h1>
+            <main className="container py-4 flex-grow-1" style={{ maxWidth: 900 }}>
+                <h1 className="h4 mb-3">Créer un projet</h1>
 
-                <form onSubmit={handleSubmit} className="d-grid gap-4">
-                    {/* Carte : Informations Générales */}
-                    <section className="card shadow-sm">
-                        <div className="card-body">
-                            <h2 className="h5 mb-3">Informations Générales</h2>
+                {/* Info orgs */}
+                {loadingOrgs ? (
+                    <div className="alert alert-info">Chargement des organisations GitHub…</div>
+                ) : errOrgs ? (
+                    // ✅ On affiche l’erreur à la place de la liste, sans redirection
+                    <div className="alert alert-warning d-flex align-items-center justify-content-between">
+                        <div>{errOrgs}</div>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={loadOrgs}>
+                            Réessayer
+                        </button>
+                    </div>
+                ) : null}
 
-                            {errors._submit && (
-                                <div className="alert alert-danger">{errors._submit}</div>
-                            )}
+                <form onSubmit={handleSubmit} className="card shadow-sm">
+                    <div className="card-body">
+                        {/* Titre */}
+                        <div className="mb-3">
+                            <label className="form-label">Nom du projet *</label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Ex : HELHa 2025 - Projets GitHub"
+                                required
+                            />
+                        </div>
 
-                            <div className="row">
-                                <div className="col-12 col-md-6">
-                                    <FormField
-                                        id="title"
-                                        label="Nom du Projet"
-                                        value={form.title}
-                                        onChange={(v) => set('title', v)}
-                                        placeholder="Ex: Web Dev Capstone"
-                                        required
-                                        error={errors.title}
-                                    />
-                                </div>
+                        {/* Organisation GitHub */}
+                        <div className="mb-3">
+                            <label className="form-label">Organisation GitHub *</label>
+                            <select
+                                className="form-select"
+                                value={org}
+                                onChange={(e) => setOrg(e.target.value)}
+                                disabled={loadingOrgs || orgs.length === 0 || !!errOrgs}   // ✅ disabled si erreur
+                                required
+                            >
+                                {orgs.length === 0 ? (
+                                    <option value="">Aucune organisation trouvée</option>
+                                ) : (
+                                    orgs.map((o) => (
+                                        <option key={o.id} value={o.login}>
+                                            {o.login}
+                                        </option>
+                                    ))
+                                )}
+                            </select>
+                            <div className="form-text">
 
-                                <div className="col-12 col-md-6">
-                                    {loadingOrgs ? (
-                                        <div className="mb-3">
-                                            <label className="form-label">Organisation</label>
-                                            <div className="form-control bg-body-secondary" aria-busy="true">
-                                                Chargement des organisations…
-                                            </div>
-                                        </div>
-                                    ) : loadError ? (
-                                        <div className="alert alert-warning mb-3">
-                                            {loadError}
-                                        </div>
-                                    ) : (
-                                        <FormSelect
-                                            id="org"
-                                            label="Organisation"
-                                            value={form.org}
-                                            onChange={(v) => set('org', v)}
-                                            options={orgs}
-                                            required
-                                            placeholder="Sélectionner une organisation"
-                                            error={errors.org}
-                                        />
-                                    )}
-                                </div>
-
-                                <div className="col-12">
-                                    <FormField
-                                        id="description"
-                                        label="Description (optionnelle)"
-                                        as="textarea"
-                                        rows={4}
-                                        value={form.description}
-                                        onChange={(v) => set('description', v)}
-                                        placeholder="Entrez une description (sinon 'aucune description' sera affichée)"
-                                    />
-                                </div>
                             </div>
                         </div>
-                    </section>
 
-                    {/* Carte : Configuration des Équipes (placeholder pour l’instant) */}
-                    <section className="card shadow-sm">
-                        <div className="card-body">
-                            <h2 className="h5 mb-3">Configuration des Équipes</h2>
+                        {/* Description */}
+                        <div className="mb-3">
+                            <label className="form-label">Description (optionnel)</label>
+                            <textarea
+                                className="form-control"
+                                rows={3}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Décrivez le projet (facultatif)…"
+                            />
+                        </div>
 
-                            <div className="row">
-                                <div className="col-12 col-md-6">
-                                    <NumberField
-                                        id="minPeople"
-                                        label="Minimum de personnes"
-                                        value={form.minPeople}
-                                        onChange={(v) => set('minPeople', v)}
-                                        min={1}
-                                        required
-                                        error={errors.minPeople}
-                                    />
-                                </div>
-
-                                <div className="col-12 col-md-6">
-                                    <NumberField
-                                        id="maxPeople"
-                                        label="Maximum de personnes"
-                                        value={form.maxPeople}
-                                        onChange={(v) => set('maxPeople', v)}
-                                        min={1}
-                                        required
-                                        error={errors.maxPeople}
-                                    />
-                                </div>
+                        {/* Tailles min / max */}
+                        <div className="row g-3">
+                            <div className="col-12 col-md-6">
+                                <label className="form-label">Étudiants minimum *</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    className="form-control"
+                                    value={minPeople}
+                                    onChange={(e) => setMinPeople(Number(e.target.value))}
+                                    required
+                                />
+                            </div>
+                            <div className="col-12 col-md-6">
+                                <label className="form-label">Étudiants maximum *</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    className="form-control"
+                                    value={maxPeople}
+                                    onChange={(e) => setMaxPeople(Number(e.target.value))}
+                                    required
+                                />
                             </div>
                         </div>
-                    </section>
 
-                    {/* Actions */}
-                    <div className="d-flex gap-2 justify-content-end">
-                        <button
-                            type="button"
-                            className="btn btn-outline-secondary"
-                            onClick={() => navigate('/dashboard')}
-                            disabled={submitting}
-                        >
-                            Annuler
-                        </button>
+                        <hr className="my-4" />
 
-                        <button type="submit" className="btn btn-success" disabled={submitting}>
-                            {submitting ? 'Création…' : 'Valider'}
-                        </button>
+                        <div className="d-flex justify-content-end gap-2">
+                            <button
+                                type="button"
+                                className="btn btn-outline-secondary"
+                                onClick={() => navigate('/dashboard')}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                disabled={!canSubmit() || submitting}
+                            >
+                                {submitting ? 'Création…' : 'Valider'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </main>

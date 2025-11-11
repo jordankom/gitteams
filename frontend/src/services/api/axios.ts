@@ -21,7 +21,7 @@ api.interceptors.response.use(
     (r) => r,
     (err) => {
         if (err?.response?.status === 401) {
-            window.location.href = '/login'; // à activer si tu veux forcer la reco
+            //window.location.href = '/login'; // à activer si tu veux forcer la reco
         }
         return Promise.reject(err);
     }
