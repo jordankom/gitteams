@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Project } from '../types/project';
 
 const origin = window.location.origin;

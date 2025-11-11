@@ -1,62 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Navbar from '../components/Navbar';
 import { getUserName } from '../utils/auth';
 import api from '../services/api/axios';
 
-// Type minimal pour une organisation GitHub
 type Org = { id: string; login: string; avatar_url?: string };
 
-export default function ProjectNew() {
+export default function ProjectCreate() {
     const navigate = useNavigate();
 
-    // Champs du formulaire
+    // Form state
     const [title, setTitle] = useState('');
     const [org, setOrg] = useState('');
     const [description, setDescription] = useState('');
-    const [minPeople, setMinPeople] = useState("");
-    const [maxPeople, setMaxPeople] = useState("");
+
+    // nombres vides au départ ('' → pas de valeur par défaut affichée)
+    const [minPeople, setMinPeople] = useState<number | ''>('');
+    const [maxPeople, setMaxPeople] = useState<number | ''>('');
 
     // Orgs GitHub
     const [orgs, setOrgs] = useState<Org[]>([]);
     const [loadingOrgs, setLoadingOrgs] = useState(true);
     const [errOrgs, setErrOrgs] = useState<string | null>(null);
 
-    // Soumission
     const [submitting, setSubmitting] = useState(false);
 
-    // Déconnexion classique
+    // Déconnexion simple
     function handleLogout() {
-        // on laisse ta logique globale de logout (si tu veux rester sur la page, enlève navigate)
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
         navigate('/login', { replace: true });
     }
 
-    // --- CHANGEMENT ICI ---
-    // Factorise le chargement des organisations pour pouvoir "Réessayer"
+    // 🔄 Charge la liste des organisations GitHub (GET /api/github/orgs)
     async function loadOrgs() {
         try {
             setLoadingOrgs(true);
             setErrOrgs(null);
-
-            const { data } = await api.get('/github/orgs'); // GET /api/github/orgs
+            const { data } = await api.get('/github/orgs');
             const list: Org[] = Array.isArray(data.orgs) ? data.orgs : [];
             setOrgs(list);
-            setOrg(list[0]?.login ?? ''); // sélectionne la première par défaut (si dispo)
+            // choisir la 1ère si dispo
+            if (list.length > 0) setOrg(list[0].login);
         } catch (e: any) {
             const status = e?.response?.status;
-            const message =
+            setErrOrgs(
                 e?.response?.data?.message ||
                 (status === 401
-                    ? 'Votre token GitHub est invalide ou expiré.'
-                    : 'Impossible de charger vos organisations GitHub.');
-
-            // ✅ On reste sur la page : on n’efface pas la session et on ne redirige pas
-            setErrOrgs(message);
-            setOrgs([]);     // on vide la liste pour que le select affiche "Aucune organisation"
-            setOrg('');      // on réinitialise la valeur sélectionnée
+                    ? 'Token GitHub invalide ou expiré.'
+                    : 'Impossible de charger vos organisations GitHub.')
+            );
+            // 🔎 IMPORTANT: on n’expulse pas l’utilisateur.
+            // On reste sur la page et on affiche l’erreur + un bouton Réessayer.
         } finally {
             setLoadingOrgs(false);
         }
@@ -64,53 +60,42 @@ export default function ProjectNew() {
 
     useEffect(() => {
         loadOrgs();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Validation simple côté front
+    // ✅ validation locale
     function canSubmit() {
         if (!title.trim()) return false;
-        if (!org.trim()) return false;                                   // besoin d’une org valide
-        if (!Number.isFinite(minPeople) || minPeople < 1) return false;
-        if (!Number.isFinite(maxPeople) || maxPeople < 1) return false;
-        if (maxPeople < minPeople) return false;
-        if (errOrgs) return false;                                       // ✅ bloque si token invalide
+        if (!org.trim()) return false;
+        const min = typeof minPeople === 'number' ? minPeople : NaN;
+        const max = typeof maxPeople === 'number' ? maxPeople : NaN;
+        if (!Number.isFinite(min) || min < 1) return false;
+        if (!Number.isFinite(max) || max < 1) return false;
+        if (max < min) return false;
         return true;
     }
 
-    // Création du projet
+    // 📨 création du projet (POST /api/projects)
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!canSubmit()) return;
 
         try {
             setSubmitting(true);
+            const min = typeof minPeople === 'number' ? minPeople : 0;
+            const max = typeof maxPeople === 'number' ? maxPeople : 0;
+
             const { data } = await api.post('/projects', {
                 title: title.trim(),
                 org: org.trim(),
                 description: description.trim() || null,
-                minPeople,
-                maxPeople,
+                minPeople: min,
+                maxPeople: max,
             });
+
             alert('Projet créé ✅');
             navigate(`/projects/${data.project.id}`);
         } catch (e: any) {
-            const status = e?.response?.status;
-            const msg =
-                e?.response?.data?.message ||
-                (status === 401
-                    ? 'Session expirée — veuillez vous reconnecter.'
-                    : 'Erreur lors de la création du projet');
-
-            alert(msg);
-
-            // ⚠️ Ici, on conserve ton comportement de déconnexion uniquement si la création renvoie 401
-            // Si tu veux aussi rester sur la page en cas de 401 à la création, supprime ces 2 lignes.
-            if (status === 401) {
-                localStorage.removeItem('auth_token');
-                localStorage.removeItem('auth_user');
-                navigate('/login', { replace: true });
-            }
+            alert(e?.response?.data?.message || 'Erreur lors de la création du projet');
         } finally {
             setSubmitting(false);
         }
@@ -123,11 +108,10 @@ export default function ProjectNew() {
             <main className="container py-4 flex-grow-1" style={{ maxWidth: 900 }}>
                 <h1 className="h4 mb-3">Créer un projet</h1>
 
-                {/* Info orgs */}
+                {/* Zone info chargement orgs */}
                 {loadingOrgs ? (
                     <div className="alert alert-info">Chargement des organisations GitHub…</div>
                 ) : errOrgs ? (
-                    // ✅ On affiche l’erreur à la place de la liste, sans redirection
                     <div className="alert alert-warning d-flex align-items-center justify-content-between">
                         <div>{errOrgs}</div>
                         <button className="btn btn-sm btn-outline-secondary" onClick={loadOrgs}>
@@ -151,14 +135,14 @@ export default function ProjectNew() {
                             />
                         </div>
 
-                        {/* Organisation GitHub */}
+                        {/* Organisation */}
                         <div className="mb-3">
                             <label className="form-label">Organisation GitHub *</label>
                             <select
                                 className="form-select"
                                 value={org}
                                 onChange={(e) => setOrg(e.target.value)}
-                                disabled={loadingOrgs || orgs.length === 0 || !!errOrgs}   // ✅ disabled si erreur
+                                disabled={loadingOrgs || orgs.length === 0 || !!errOrgs}
                                 required
                             >
                                 {orgs.length === 0 ? (
@@ -172,7 +156,6 @@ export default function ProjectNew() {
                                 )}
                             </select>
                             <div className="form-text">
-
                             </div>
                         </div>
 
@@ -188,7 +171,7 @@ export default function ProjectNew() {
                             />
                         </div>
 
-                        {/* Tailles min / max */}
+                        {/* Min/Max */}
                         <div className="row g-3">
                             <div className="col-12 col-md-6">
                                 <label className="form-label">Étudiants minimum *</label>
@@ -197,7 +180,10 @@ export default function ProjectNew() {
                                     min={1}
                                     className="form-control"
                                     value={minPeople}
-                                    onChange={(e) => setMinPeople(Number(e.target.value))}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setMinPeople(v === '' ? '' : Number(v));
+                                    }}
                                     required
                                 />
                             </div>
@@ -208,7 +194,10 @@ export default function ProjectNew() {
                                     min={1}
                                     className="form-control"
                                     value={maxPeople}
-                                    onChange={(e) => setMaxPeople(Number(e.target.value))}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setMaxPeople(v === '' ? '' : Number(v));
+                                    }}
                                     required
                                 />
                             </div>
@@ -227,7 +216,7 @@ export default function ProjectNew() {
                             <button
                                 type="submit"
                                 className="btn btn-primary"
-                                disabled={!canSubmit() || submitting}
+                                disabled={!canSubmit() || submitting || !!errOrgs}
                             >
                                 {submitting ? 'Création…' : 'Valider'}
                             </button>

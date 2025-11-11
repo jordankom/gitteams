@@ -1,8 +1,7 @@
-import React from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import LoginForm from '../components/LoginForm';
-import { isAuthenticated } from '../utils/auth';
+
 
 export default function LoginPage() {
     const navigate = useNavigate();

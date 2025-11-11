@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type Participant = {
     username: string;
     email: string;

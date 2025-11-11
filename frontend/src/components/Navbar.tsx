@@ -1,5 +1,3 @@
-import React from 'react';
-
 type Props = {
     /** Nom de l’utilisateur connecté (facultatif) */
     userName?: string;

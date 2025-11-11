@@ -1,4 +1,3 @@
-import React from 'react';
 import GroupList, { type Group } from './GroupList';
 
 export default function GroupsSection({ groups }: { groups: Group[] }) {

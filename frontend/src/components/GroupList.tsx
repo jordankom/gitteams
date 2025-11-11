@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type Participant = {
     username: string;
     email: string;
@@ -25,7 +23,7 @@ export default function GroupList({ groups }: Props) {
 
     return (
         <div className="accordion accordion-flush" id={accordionId}>
-            {groups.map((g, idx) => {
+            {groups.map((g) => {
                 const itemId = `group-${g.id ?? g.number}`;
                 const headingId = `heading-${itemId}`;
                 const collapseId = `collapse-${itemId}`;
