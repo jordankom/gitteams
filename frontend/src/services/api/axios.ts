@@ -6,7 +6,7 @@ const api = axios.create({
     withCredentials: false,
 });
 
-// Injecter le JWT dans *toutes* les requêtes
+// Injecter le JWT dans toutes les requêtes
 api.interceptors.request.use((config) => {
     const token = getToken();
     if (token) {
